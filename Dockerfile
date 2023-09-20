@@ -23,3 +23,4 @@ ENV PATH="${PATH}:/home/runner/.yarn/bin"
 COPY --from=docker/buildx-bin:latest /buildx /usr/libexec/docker/cli-plugins/docker-buildx
 
 USER runner
+
