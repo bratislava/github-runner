@@ -2,11 +2,13 @@ FROM ghcr.io/actions/actions-runner:latest AS prod
 
 USER root
 
-# installing prerequisities needed for bratiska-cli (and sometimes npm build) - yarn, kustomize, envsubst and make
+# installing prerequisities needed for bratiska-cli (and sometimes npm build) - yarn, kustomize, envsubst and build-essential
 RUN mkdir -p /home/runner/.local/bin/ \
+  && apt-get update \
+  # needed for make / g++, which is sometimes needed in npm build
+  && apt-get install -y --no-install-recommends --fix-missing build-essential \
   # install envsubst
-  && apt-get update && apt-get install gettext-base \
-  && apt-get install make \
+  && apt-get install gettext-base \
   # install yarn and make it executable command
   && curl -fsSL -o /home/runner/.local/bin/yarn https://github.com/yarnpkg/yarn/releases/download/v1.22.19/yarn-1.22.19.js \
   && chmod +x /home/runner/.local/bin/yarn \
