@@ -1,9 +1,7 @@
 name: Build & Push Image
 
 on:
-  schedule:
-    - cron: "0 0 * * 0"
-  pull_request:
+  push:
     branches:
       - master
   workflow_dispatch:
