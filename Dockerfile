@@ -1,4 +1,4 @@
-FROM summerwind/actions-runner-dind:ubuntu-20.04 as prod
+FROM ghcr.io/actions/actions-runner:2.328.0 AS prod
 
 USER root
 
