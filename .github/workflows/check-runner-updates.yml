@@ -1,0 +1,116 @@
+name: Check Actions Runner Updates
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+
+      - name: Get current runner version from Dockerfile
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep -o 'ghcr.io/actions/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+' Dockerfile | sed 's/ghcr.io\/actions\/actions-runner://')
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Get latest runner version from GitHub API
+        id: latest-version
+        run: |
+          # Get the latest version from GitHub Container Registry API
+          LATEST_VERSION=$(curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/orgs/actions/packages/container/actions-runner/versions" \
+                      | grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' | tr -d '"' | sort -r | head -n 1)
+
+          echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Compare versions
+        id: compare-versions
+        run: |
+          CURRENT="${{ steps.current-version.outputs.current }}"
+          LATEST="${{ steps.latest-version.outputs.latest }}"
+
+          echo "Comparing: $CURRENT vs $LATEST"
+
+          # Use sort -V for version comparison
+          if [ "$(printf '%s\n' "$CURRENT" "$LATEST" | sort -V | head -1)" != "$LATEST" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "Update needed: $CURRENT -> $LATEST"
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "No update needed. Current version is up to date."
+          fi
+
+      - name: Update Dockerfile
+        if: steps.compare-versions.outputs.update_needed == 'true'
+        run: |
+          # Update the Dockerfile with the new version
+          sed -i "s/ghcr.io\/actions\/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+/ghcr.io\/actions\/actions-runner:${{ steps.latest-version.outputs.latest }}/" Dockerfile
+          echo "Updated Dockerfile with new version: ${{ steps.latest-version.outputs.latest }}"
+
+      - name: Create Pull Request
+        if: steps.compare-versions.outputs.update_needed == 'true'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update actions-runner to ${{ steps.latest-version.outputs.latest }}"
+          title: "Update Actions Runner to ${{ steps.latest-version.outputs.latest }}"
+          base: "master"
+          body: |
+            ## 🚀 Actions Runner Update
+
+            This PR updates the GitHub Actions runner from `${{ steps.current-version.outputs.current }}` to `${{ steps.latest-version.outputs.latest }}`.
+
+            ### Changes
+            - Updated Dockerfile base image from `ghcr.io/actions/actions-runner:${{ steps.current-version.outputs.current }}` to `ghcr.io/actions/actions-runner:${{ steps.latest-version.outputs.latest }}`
+
+            ---
+            *This PR was automatically created by the [Check Actions Runner Updates](.github/workflows/check-runner-updates.yml) workflow.*
+          branch: update-actions-runner-${{ steps.latest-version.outputs.latest }}
+          delete-branch: true
+
+      - name: Send Slack Notification
+        if: steps.compare-versions.outputs.update_needed == 'true' && env.SLACK_BOT_TOKEN != ''
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          errors: true
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "C036AH93SPL",
+              "text": "🚀 *Actions Runner Update Available*\n\nA new GitHub Actions runner version has been detected and a PR has been created:\n\n• *Current Version:* `${{ steps.current-version.outputs.current }}`\n• *Latest Version:* `${{ steps.latest-version.outputs.latest }}`\n• *Pull Request:* <https://github.com/${{ github.repository }}/pull/${{ steps.create-pr.outputs.pull-request-number }}|View PR>\n\nPlease review and merge the PR when ready."
+            }
+
+      - name: Send Slack Notification (No Updates)
+        if: steps.compare-versions.outputs.update_needed == 'false' && env.SLACK_BOT_TOKEN != ''
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          errors: true
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "C036AH93SPL",
+              "text": "✅ *Actions Runner Check Complete*\n\nNo updates needed. Current version `${{ steps.current-version.outputs.current }}` is up to date."
+            }
