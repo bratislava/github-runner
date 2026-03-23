@@ -1,4 +1,4 @@
-FROM ghcr.io/actions/actions-runner:2.332.0 AS prod
+FROM ghcr.io/actions/actions-runner:2.333.0 AS prod
 
 USER root
 
