@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ github.ref }}
@@ -70,7 +70,7 @@ jobs:
       - name: Create Pull Request
         if: steps.compare-versions.outputs.update_needed == 'true'
         id: create-pr
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5.0.3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update actions-runner to ${{ steps.latest-version.outputs.latest }}"
@@ -91,7 +91,7 @@ jobs:
 
       - name: Send Slack Notification
         if: steps.compare-versions.outputs.update_needed == 'true' && env.SLACK_BOT_TOKEN != ''
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
           errors: true
           method: chat.postMessage
@@ -104,7 +104,7 @@ jobs:
 
       - name: Send Slack Notification (No Updates)
         if: steps.compare-versions.outputs.update_needed == 'false' && env.SLACK_BOT_TOKEN != ''
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
           errors: true
           method: chat.postMessage
