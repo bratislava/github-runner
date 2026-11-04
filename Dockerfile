@@ -26,3 +26,17 @@ ENV PATH="${PATH}:/home/runner/.local/bin"
 
 USER runner
 
+
+# The `prod` image without sudo, for the rootless Docker-in-Docker scale set.
+# Its jobs reach Docker only through a rootless daemon, so nothing should be
+# able to become root inside the runner container either. Every tool a job
+# needs has to be installed above.
+FROM prod AS rootless
+
+USER root
+
+RUN SUDO_FORCE_REMOVE=yes apt-get purge -y sudo \
+  && rm -f /etc/sudoers \
+  && gpasswd -d runner sudo
+
+USER runner
