@@ -1,0 +1,19 @@
+FROM ghcr.io/actions/actions-runner:2.338.2
+
+USER root
+
+# Rootless runner image for the rootless Docker-in-Docker scale set. Its jobs
+# reach Docker only through a rootless daemon, so nothing should be able to
+# become root inside the runner container either: sudo is removed. Every tool
+# a job needs has to be installed here.
+RUN apt-get update \
+  # needed for make / g++, which is sometimes needed in npm build
+  && apt-get install -y --no-install-recommends --fix-missing build-essential \
+  # remove sudo so the runner user cannot become root
+  && SUDO_FORCE_REMOVE=yes apt-get purge -y sudo \
+  && rm -f /etc/sudoers \
+  && gpasswd -d runner sudo \
+  # clean up apt cache
+  && rm -rf /var/cache/apt/archives /var/lib/apt/lists/*
+
+USER runner

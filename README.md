@@ -7,7 +7,7 @@ A custom image with some pre-installed dependencies for Github self-hosted runne
 You can build the image by any standard Docker image building way, such as
 
 ```sh
-docker buildx build --target prod -t gh-runner:latest .
+docker buildx build -t gh-runner:latest .
 ```
 
 The image will install following packages/tools
@@ -19,10 +19,10 @@ The image will install following packages/tools
 
 ### Rootless variant
 
-The `rootless` target is the same image without `sudo`. It is pushed as `actions-runner-rootless` and used by the `bratislava-rootless` runner scale set, where jobs talk to a rootless Docker daemon. Jobs there can't install system packages, so any tool they need has to be added to this Dockerfile.
+[`Dockerfile.rootless`](./Dockerfile.rootless) builds a separate image without `sudo` that only installs `build-essential` (no envsubst, kustomize or yarn). It is pushed as `actions-runner-rootless` and used by the `bratislava-rootless` runner scale set, where jobs talk to a rootless Docker daemon. Jobs there can't install system packages, so any tool they need has to be added to `Dockerfile.rootless`.
 
 ```sh
-docker buildx build --target rootless -t gh-runner-rootless:latest .
+docker buildx build -f Dockerfile.rootless -t gh-runner-rootless:latest .
 ```
 
 There is also a [GitHub workflow](./.github/workflows/build.yml), that will build both images, tag them with appropriate ARC runner version and push them to Harbor.

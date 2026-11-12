@@ -60,12 +60,12 @@ jobs:
             echo "No update needed. Current version is up to date."
           fi
 
-      - name: Update Dockerfile
+      - name: Update Dockerfiles
         if: steps.compare-versions.outputs.update_needed == 'true'
         run: |
-          # Update the Dockerfile with the new version
-          sed -i "s/ghcr.io\/actions\/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+/ghcr.io\/actions\/actions-runner:${{ steps.latest-version.outputs.latest }}/" Dockerfile
-          echo "Updated Dockerfile with new version: ${{ steps.latest-version.outputs.latest }}"
+          # Update both Dockerfiles with the new version
+          sed -i "s/ghcr.io\/actions\/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+/ghcr.io\/actions\/actions-runner:${{ steps.latest-version.outputs.latest }}/" Dockerfile Dockerfile.rootless
+          echo "Updated Dockerfile and Dockerfile.rootless with new version: ${{ steps.latest-version.outputs.latest }}"
 
       - name: Create Pull Request
         if: steps.compare-versions.outputs.update_needed == 'true'
@@ -82,7 +82,7 @@ jobs:
             This PR updates the GitHub Actions runner from `${{ steps.current-version.outputs.current }}` to `${{ steps.latest-version.outputs.latest }}`.
 
             ### Changes
-            - Updated Dockerfile base image from `ghcr.io/actions/actions-runner:${{ steps.current-version.outputs.current }}` to `ghcr.io/actions/actions-runner:${{ steps.latest-version.outputs.latest }}`
+            - Updated `Dockerfile` and `Dockerfile.rootless` base image from `ghcr.io/actions/actions-runner:${{ steps.current-version.outputs.current }}` to `ghcr.io/actions/actions-runner:${{ steps.latest-version.outputs.latest }}`
 
             ---
             *This PR was automatically created by the [Check Actions Runner Updates](.github/workflows/check-runner-updates.yml) workflow.*
