@@ -23,6 +23,20 @@ jobs:
         run: |
           IMAGE_TAG=$(curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/orgs/actions/packages/container/actions-runner/versions" \
                       | grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' | tr -d '"' | sort -r | head -n 1)
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "::error::Could not determine the runner version from the GitHub packages API"
+            exit 1
+          fi
+
+          # Both images must be built from the same runner version
+          RUNNER_VERSION_PATTERN='ghcr.io/actions/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+'
+          MAIN_VERSION=$(grep -o "$RUNNER_VERSION_PATTERN" Dockerfile | sed 's/ghcr.io\/actions\/actions-runner://')
+          ROOTLESS_VERSION=$(grep -o "$RUNNER_VERSION_PATTERN" Dockerfile.rootless | sed 's/ghcr.io\/actions\/actions-runner://')
+          if [ -z "$MAIN_VERSION" ] || [ "$MAIN_VERSION" != "$ROOTLESS_VERSION" ]; then
+            echo "::error::Runner version mismatch: Dockerfile has '$MAIN_VERSION', Dockerfile.rootless has '$ROOTLESS_VERSION'"
+            exit 1
+          fi
+
           echo "IMAGE_TAG=$(echo $IMAGE_TAG)" >> $GITHUB_ENV
       - name: Docker Metadata
         id: meta
