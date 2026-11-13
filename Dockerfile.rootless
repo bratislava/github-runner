@@ -11,7 +11,6 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends --fix-missing build-essential \
   # remove sudo so the runner user cannot become root
   && SUDO_FORCE_REMOVE=yes apt-get purge -y sudo \
-  && rm -f /etc/sudoers \
   && gpasswd -d runner sudo \
   # clean up apt cache
   && rm -rf /var/cache/apt/archives /var/lib/apt/lists/*
