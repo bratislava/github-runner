@@ -8,6 +8,7 @@ on:
 
 env:
   IMAGE_NAME: ${{ vars.HARBOR_REGISTRY }}/${{ vars.HARBOR_NAMESPACE }}/actions-runner-dind
+  ROOTLESS_IMAGE_NAME: ${{ vars.HARBOR_REGISTRY }}/${{ vars.HARBOR_NAMESPACE }}/actions-runner-rootless
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   build:
@@ -22,12 +23,34 @@ jobs:
         run: |
           IMAGE_TAG=$(curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/orgs/actions/packages/container/actions-runner/versions" \
                       | grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' | tr -d '"' | sort -r | head -n 1)
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "::error::Could not determine the runner version from the GitHub packages API"
+            exit 1
+          fi
+
+          # Both images must be built from the same runner version
+          RUNNER_VERSION_PATTERN='ghcr.io/actions/actions-runner:[0-9]\+\.[0-9]\+\.[0-9]\+'
+          MAIN_VERSION=$(grep -o "$RUNNER_VERSION_PATTERN" Dockerfile | sed 's/ghcr.io\/actions\/actions-runner://')
+          ROOTLESS_VERSION=$(grep -o "$RUNNER_VERSION_PATTERN" Dockerfile.rootless | sed 's/ghcr.io\/actions\/actions-runner://')
+          if [ -z "$MAIN_VERSION" ] || [ "$MAIN_VERSION" != "$ROOTLESS_VERSION" ]; then
+            echo "::error::Runner version mismatch: Dockerfile has '$MAIN_VERSION', Dockerfile.rootless has '$ROOTLESS_VERSION'"
+            exit 1
+          fi
+
           echo "IMAGE_TAG=$(echo $IMAGE_TAG)" >> $GITHUB_ENV
       - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ env.IMAGE_TAG }}
+            latest
+      - name: Docker Metadata (rootless)
+        id: meta-rootless
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.ROOTLESS_IMAGE_NAME }}
           tags: |
             ${{ env.IMAGE_TAG }}
             latest
@@ -46,3 +69,10 @@ jobs:
           file: "./Dockerfile"
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+      - name: Build and Push (rootless)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: "."
+          file: "./Dockerfile.rootless"
+          push: true
+          tags: ${{ steps.meta-rootless.outputs.tags }}
